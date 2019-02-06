@@ -12,7 +12,7 @@
     }
   ],
   "autoload": {
-    "psr-4": {"Litegoio\\": "lib"}
+    "psr-4": {"Litego\\": "lib"}
   },
   "require": {
     "textalk/websocket": "1.0.*"
