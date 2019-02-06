@@ -1,0 +1,20 @@
+{
+  "name": "litegoio/litego-php",
+  "type": "library",
+  "description": "Litego.io API PHP Class",
+  "homepage": "https://litego.io",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Anastasiia Sierykh",
+      "email": "n.sierykh@gmail.com",
+      "role": "Developer"
+    }
+  ],
+  "autoload": {
+    "psr-4": {"Litegoio\\": "lib"}
+  },
+  "require": {
+    "textalk/websocket": "1.0.*"
+  }
+}
