@@ -374,6 +374,7 @@ class Litego {
                 'description' => $result['response_result']['description'],
                 'amount' => $result['response_result']['amount'],
                 'amount_satoshi' => $result['response_result']['amount_satoshi'],
+                'amount_paid_satoshi' => $result['response_result']['amount_paid_satoshi'],
                 'payment_request' => $result['response_result']['payment_request'],
                 'paid' => $result['response_result']['paid'],
                 'created' => $result['response_result']['created'],
