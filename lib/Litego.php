@@ -4,7 +4,7 @@
  * https://litego.io/documentation/
  * https://github.com/litegoio/litego-php
  *
- * @version 1.1.0
+ * @version 1.2.0
  */
 
 namespace Litego;
@@ -40,6 +40,10 @@ class Litego {
     //codes
     const CODE_200 = 200;
     const CODE_400 = 400;
+
+    //currencies
+    const BTC = 'btc';
+    const EOS = 'eos';
 
     /**
      * @var string
@@ -652,11 +656,10 @@ class Litego {
         if ($result['response_code'] == self::CODE_200) {
             return array(
                 'code' => self::CODE_200,
-                'data' => $result['response_result']['data'],
-                'page' => $result['response_result']['page'],
-                'page_size' => $result['response_result']['page_size'],
-                'object' => $result['response_result']['object'],
-                'count' => $result['response_result']['count'],
+                'withdrawal_fee' => $result['response_result']['withdrawal_fee'],
+                'withdrawal_manual_fee' => $result['response_result']['withdrawal_manual_fee'],
+                'withdrawal_min_amount' => $result['response_result']['withdrawal_min_amount'],
+                'withdrawal_lightning_min_amount' => $result['response_result']['withdrawal_lightning_min_amount'],
                 'error' => 0
             );
         }
@@ -696,11 +699,14 @@ class Litego {
         if ($result['response_code'] == self::CODE_200) {
             return array(
                 'code' => self::CODE_200,
-                'withdrawal_fee' => $result['response_result']['withdrawal_fee'],
-                'withdrawal_manual_fee' => $result['response_result']['withdrawal_manual_fee'],
-                'withdrawal_min_amount' => $result['response_result']['withdrawal_min_amount'],
+                'data' => $result['response_result']['data'],
+                'page' => $result['response_result']['page'],
+                'page_size' => $result['response_result']['page_size'],
+                'object' => $result['response_result']['object'],
+                'count' => $result['response_result']['count'],
                 'error' => 0
             );
+
         }
         else {
             return array(
@@ -790,6 +796,370 @@ class Litego {
 
         return $result_string;
     }
+
+    /**
+     * Generate Wallet Address
+     *
+     * This API call is used to create a new receive address for your wallet.
+     *
+     * @since 1.2.0
+     *
+     * @link https://litego.io/documentation/?php#generate-wallet-address
+     *
+     * @param string    $authToken      Authentication key
+     * @param string    $currency       Currency (btc/eos)
+     * @param int       $timeout        Websocket timeout
+     *
+     * @return string   json format
+     */
+    public function generateWalletAddress($authToken, $currency, $timeout = self::TIMEOUT) {
+
+        //authorization headers
+        $headers = array(
+            "Authorization: Bearer " . $authToken
+        );
+
+        $result = $this->doApiRequest('/api/v1/' . $currency . '/address', 'PUT', $data = array(), $headers, $timeout);
+
+        if ($result['response_result']) {
+            $result['response_result'] = json_decode($result['response_result'],1);
+        }
+
+        if ($result['response_code'] == self::CODE_200) {
+            return array(
+                'code' => self::CODE_200,
+                'address' => $result['response_result']['address'],
+                'account' => isset($result['response_result']['account']) ? $result['response_result']['account'] : '',
+                'error' => 0
+            );
+        }
+        else {
+            return array(
+                'code' => $result['response_code'] ? $result['response_code'] : self::CODE_400,
+                'error' => 1,
+                'error_name' => $result['response_result']['name'],
+                'error_message' => $result['response_result']['detail'],
+            );
+        }
+    }
+
+    /**
+     * Send Coins to Address
+     *
+     * This API call allows you to send cryptocurrency to a destination address.
+     *
+     * @since 1.2.0
+     *
+     * @link http://localhost:4567/?shell#send-coins-to-address
+     *
+     * @param string    $authToken      Authentication key
+     * @param string    $currency       Currency (btc/eos)
+     * @param int       $timeout        Websocket timeout
+     *
+     * @return string   json format
+     */
+    public function sendCoinsToAddress($authToken, $currency, $address, $amount, $comment,  $timeout = self::TIMEOUT) {
+
+        //authorization headers
+        $headers = array(
+            "Authorization: Bearer " . $authToken
+        );
+
+        if ($currency == self::BTC) {
+            $data = array(
+                'address' => $address,
+                'amount_sat' => $amount,
+                'comment' => $comment,
+            );
+        } elseif ($currency == self::EOS) {
+            $data = array(
+                'account' => $address,
+                'amount_eos' => $amount,
+                'memo' => $comment,
+            );
+        }
+
+
+        $result = $this->doApiRequest('/api/v1/' . $currency . '/sendcoins', 'POST', $data, $headers, $timeout);
+
+        if ($result['response_result']) {
+            $result['response_result'] = json_decode($result['response_result'],1);
+        }
+
+        if ($result['response_code'] == self::CODE_200) {
+            if ($currency == self::BTC) {
+                return array(
+                    'code' => self::CODE_200,
+                    'id' => $result['response_result']['id'],
+                    'txid' => $result['response_result']['txid'],
+                    'amount_sat' => $result['response_result']['amount_sat'],
+                    'blockchain_fee' => $result['response_result']['blockchain_fee'],
+                    'comment' => $result['response_result']['comment'],
+                    'error' => 0
+                );
+            } elseif ($currency == self::EOS) {
+                return array(
+                    'code' => self::CODE_200,
+                    'id' => $result['response_result']['id'],
+                    'txid' => $result['response_result']['txid'],
+                    'amount_eos' => $result['response_result']['amount_eos'],
+                    'memo' => $result['response_result']['memo'],
+                    'error' => 0
+                );
+            }
+        }
+        else {
+            return array(
+                'code' => $result['response_code'] ? $result['response_code'] : self::CODE_400,
+                'error' => 1,
+                'error_name' => $result['response_result']['name'],
+                'error_message' => $result['response_result']['detail'],
+            );
+        }
+    }
+
+
+    /**
+     * Send Coins to Many
+     *
+     * This API call allows you to send cryptocurrency to many addresses.
+     *
+     * @since 1.2.0
+     *
+     * @link https://litego.io/documentation/?shell#send-coins-to-many
+     *
+     * @param string    $authToken      Authentication key
+     * @param string    $currency       Currency (btc/eos)
+     * @param array     $amounts        Array of recipient objects and the amount to send to each e.g. [{"address":"N6Jd4MPeNDXNDtTQPPMgQteobzSyM8AvUy", amount_sat: 1000}, ?] The amount should be Long
+     * @param string    $comment        Any additional comment to attach to the transaction
+     * @param int       $timeout        Websocket timeout
+     *
+     * @return string   json format
+     */
+    public function sendCoinsToMany($authToken, $currency, $amounts = array(), $comment,  $timeout = self::TIMEOUT) {
+
+        //authorization headers
+        $headers = array(
+            "Authorization: Bearer " . $authToken
+        );
+
+        $data = array(
+            'amounts' => $amounts,
+            'comment' => $comment
+        );
+
+        $result = $this->doApiRequest('/api/v1/' . $currency . '/sendmany', 'POST', $data, $headers, $timeout);
+
+        if ($result['response_result']) {
+            $result['response_result'] = json_decode($result['response_result'],1);
+        }
+
+        if ($result['response_code'] == self::CODE_200) {
+
+            return array(
+                'code' => self::CODE_200,
+                'transfers' => $result['response_result']['transfers'],
+                'error' => 0
+            );
+
+        }
+        else {
+            return array(
+                'code' => $result['response_code'] ? $result['response_code'] : self::CODE_400,
+                'error' => 1,
+                'error_name' => $result['response_result']['name'],
+                'error_message' => $result['response_result']['detail'],
+            );
+        }
+    }
+
+    /**
+     * Get Transfer
+     * Wallet transfers represent digital currency sends and receives on your wallet
+     *
+     * @since 1.2.0
+     *
+     * @link https://litego.io/documentation/?shell#get-transfer
+     *
+     * @param string    $authToken      Authentication key
+     * @param string    $currency       btc/eos
+     * @param string    $id             ID of the wallet transfer
+     *
+     * @return array
+     */
+    public function getWalletTransfer($authToken, $currency, $id, $timeout = self::TIMEOUT) {
+        $headers = array(
+            'Authorization: Bearer ' . $authToken
+        );
+
+        $result = $this->doApiRequest('/api/v1/' . $currency . '/transfer/' . $id, 'GET', array(), $headers, $timeout);
+        if ($result['response_result']) {
+            $result['response_result'] = json_decode($result['response_result'],1);
+        }
+
+
+        if ($result['response_code'] == self::CODE_200) {
+            return array(
+                'code' => self::CODE_200,
+                'id' => $result['response_result']['id'],
+                'txid' => $result['response_result']['txid'],
+                'address' => $result['response_result']['address'],
+                'amount_sat' => $result['response_result']['amount_sat'],
+                'blockchain_fee' => $result['response_result']['blockchain_fee'],
+                'status' => $result['response_result']['status'],
+                'direction' => $result['response_result']['direction'],
+                'comment' => $result['response_result']['comment'],
+                'created_at' => $result['response_result']['created_at'],
+                'status_changed_at' => $result['response_result']['status_changed_at'],
+                'error' => 0
+            );
+        }
+        else {
+            return array(
+                'code' => $result['response_code'] ? $result['response_code'] : self::CODE_400,
+                'error' => 1,
+                'error_name' => $result['response_result']['name'],
+                'error_message' => $result['response_result']['detail'],
+            );
+        }
+    }
+
+
+    /**
+     * List Wallet Transfers
+     * You can retrieve a list of transfers with status and pagination filters.
+     *
+     * @since 1.2.0
+     *
+     * @link https://litego.io/documentation/?shell#get-transfer
+     *
+     * @param string    $authToken      Authentication key
+     * @param array     $data           Filter parameters. 'page','page_size'
+     *
+     * @return array
+     */
+    public function listWalletTransfers($authToken, $currency, $data = array(), $timeout = self::TIMEOUT) {
+        $headers = array(
+            'Authorization: Bearer ' . $authToken
+        );
+
+        $result = $this->doApiRequest('/api/v1/' . $currency . '/transfer', 'GET', $data, $headers, $timeout);
+        if ($result['response_result']) {
+            $result['response_result'] = json_decode($result['response_result'],1);
+        }
+
+
+        if ($result['response_code'] == self::CODE_200) {
+            return array(
+                'code' => self::CODE_200,
+                'data' => $result['response_result']['data'],
+                'page' => $result['response_result']['page'],
+                'page_size' => $result['response_result']['page_size'],
+                'object' => $result['response_result']['object'],
+                'count' => $result['response_result']['count'],
+                'error' => 0
+            );
+        }
+        else {
+            return array(
+                'code' => $result['response_code'] ? $result['response_code'] : self::CODE_400,
+                'error' => 1,
+                'error_name' => $result['response_result']['name'],
+                'error_message' => $result['response_result']['detail'],
+            );
+        }
+    }
+
+    /**
+     * Get Balance
+     * This API call allows you to know balance.
+     *
+     * @since 1.2.0
+     *
+     * @link https://litego.io/documentation/?shell#get-balance
+     *
+     * @param string    $authToken      Authentication key
+     * @param string    $currency       btc/eos
+     *
+     * @return array
+     */
+    public function getWalletBalance($authToken, $currency, $timeout = self::TIMEOUT) {
+        $headers = array(
+            'Authorization: Bearer ' . $authToken
+        );
+
+        $result = $this->doApiRequest('/api/v1/' . $currency . '/balance', 'GET', array(), $headers, $timeout);
+        if ($result['response_result']) {
+            $result['response_result'] = json_decode($result['response_result'],1);
+        }
+
+
+        if ($result['response_code'] == self::CODE_200) {
+
+            if($currency == self::BTC) {
+                return array(
+                    'code' => self::CODE_200,
+                    'balance_sat' => $result['response_result']['balance_sat'],
+                    'spendable_balance_sat' => $result['response_result']['spendable_balance_sat'],
+                    'error' => 0
+                );
+            } elseif ($currency == self::EOS) {
+                return array(
+                    'code' => self::CODE_200,
+                    'balance_eos' => $result['response_result']['balance_eos'],
+                    'spendable_balance_eos' => $result['response_result']['spendable_balance_eos'],
+                    'error' => 0
+                );
+            }
+        }
+        else {
+            return array(
+                'code' => $result['response_code'] ? $result['response_code'] : self::CODE_400,
+                'error' => 1,
+                'error_name' => $result['response_result']['name'],
+                'error_message' => $result['response_result']['detail'],
+            );
+        }
+    }
+
+    /**
+     * Subscribe to Incoming Transfers
+     *
+     * You may subscribe to topic with all incoming transfers for specific currency.
+     * Subscription requires authentication. You need to pass your auth token in header to authorize.
+     *
+     * @since 1.2.0
+     *
+     * @link https://litego.io/documentation/?shell#subscribe-to-incoming-transfers
+     *
+     * @param string    $authToken      Authentication key
+     * @param string    $currency       btc/eos
+     * @param int       $timeout        Websocket timeout
+     *
+     * @return string   json format
+     */
+    public function subscribeIncomingTransfers($authToken, $currency, $timeout = self::TIMEOUT) {
+        $client = new Client($this->wsServiceUrl . '/api/v1/' . $currency . '/transfers/subscribe',
+            array(
+                "headers" => array(
+                    "authorization" => "Bearer " . $authToken
+                ),
+                "timeout" => $timeout
+            )
+        );
+        $client->send("");
+        $result_string = "";
+        while ($result_string == "") {
+            try {
+                $result_string = trim($client->receive());
+            } catch (Exception $e) {
+                throw new Exception('Litego API: ' . $e->getCode() . " : " . $e->getMessage());
+            }
+        }
+
+        return $result_string;
+    }
+
 
 
     /**
